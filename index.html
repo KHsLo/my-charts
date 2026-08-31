@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖表快速查詢</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f6f8;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 25px 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.3rem;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.2rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            letter-spacing: 4px;
+            outline: none;
+        }
+        input[type="number"]:focus {
+            border-color: #007aff;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1rem;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .img-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .img-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .error-msg {
+            color: #d9534f;
+            margin-top: 15px;
+            display: none;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>4 位數圖表快速查詢</h2>
+    <div class="input-group">
+        <input type="number" id="photoId" placeholder="請輸入 4 位數代號" maxlength="4" oninput="if(value.length>4)value=value.slice(0,4)">
+    </div>
+    <button onclick="searchPhoto()">查看圖表</button>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- 圖片顯示區 -->
+    <div class="img-container" id="imgContainer">
+        <img id="resultImg" src="" alt="載入中..." onerror="handleImageError()">
+    </div>
+</div>
+
+<script>
+    function searchPhoto() {
+        const input = document.getElementById("photoId").value.trim();
+        const errorMsg = document.getElementById("errorMsg");
+        const imgContainer = document.getElementById("imgContainer");
+        const resultImg = document.getElementById("resultImg");
+
+        if (input.length !== 4) {
+            errorMsg.innerText = "請輸入正確的 4 位數數字！";
+            errorMsg.style.display = "block";
+            imgContainer.style.display = "none";
+            return;
+        }
+
+        errorMsg.style.display = "none";
+        
+        // 補足 4 位數，例如輸入 12 會自動轉為 0012
+        const paddedNum = input.padStart(4, '0');
+        
+        // 因為 index.html 與圖片放在同一個資料夾，直接讀取相對路徑 ./編號.png
+        const imgUrl = `./${paddedNum}.png`;
+
+        resultImg.src = imgUrl;
+        imgContainer.style.display = "block";
+    }
+
+    // 圖片不存在時的提示處置
+    function handleImageError() {
+        const errorMsg = document.getElementById("errorMsg");
+        const imgContainer = document.getElementById("imgContainer");
+        
+        imgContainer.style.display = "none";
+        errorMsg.innerText = "找不到對應的圖表，請確認編號是否正確！";
+        errorMsg.style.display = "block";
+    }
+
+    // 支援按下 Enter 鍵直接查詢
+    document.getElementById("photoId").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            searchPhoto();
+        }
+    });
+</script>
+
+</body>
+</html>
