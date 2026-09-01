@@ -50,7 +50,7 @@
         input[type="text"]:focus {
             border-color: #007aff;
         }
-        button {
+        button.search-btn {
             width: 100%;
             padding: 12px;
             font-size: 1.1rem;
@@ -62,8 +62,54 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        button:hover {
+        button.search-btn:hover {
             background-color: #0056b3;
+        }
+        /* 多家公司符合時的候選選單樣式 */
+        .candidate-list {
+            margin-top: 15px;
+            display: none;
+            text-align: left;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .candidate-title {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .candidate-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .candidate-item:last-child {
+            margin-bottom: 0;
+        }
+        .candidate-item:hover {
+            background-color: #e7f3ff;
+            border-color: #70b5ff;
+        }
+        .candidate-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .candidate-code {
+            font-size: 0.85rem;
+            color: #007aff;
+            background: #e7f3ff;
+            padding: 2px 6px;
+            border-radius: 4px;
         }
         .img-container {
             margin-top: 20px;
@@ -102,12 +148,17 @@
 <div class="card">
     <h2>圖表快速查詢</h2>
     <div class="input-group">
-        <!-- 輸入框為 type="text"，不加 numeric 限制，讓手機彈出完整輸入法 -->
-        <input type="text" id="searchInput" placeholder="請輸入公司代碼或名稱 (例: 台積電 或 2330)" autocomplete="off">
+        <input type="text" id="searchInput" placeholder="請輸入公司代碼或名稱 (例: 鮮活 或 2330)" autocomplete="off">
     </div>
-    <button onclick="searchPhoto()">查看圖表</button>
+    <button class="search-btn" onclick="searchPhoto()">查看圖表</button>
 
     <div class="error-msg" id="errorMsg"></div>
+
+    <!-- 多家公司符合時顯示的點擊選單區 -->
+    <div class="candidate-list" id="candidateList">
+        <div class="candidate-title" id="candidateTitle">找到多筆符合資料，請選擇：</div>
+        <div id="candidateContainer"></div>
+    </div>
 
     <!-- 圖片顯示區 -->
     <div class="img-container" id="imgContainer">
@@ -140,54 +191,99 @@
         const rawInput = document.getElementById("searchInput").value.trim();
         const errorMsg = document.getElementById("errorMsg");
         const imgContainer = document.getElementById("imgContainer");
-        const resultImg = document.getElementById("resultImg");
-        const downloadBtn = document.getElementById("downloadBtn");
+        const candidateList = document.getElementById("candidateList");
+
+        // 搜尋前先隱藏之前的結果與警告
+        errorMsg.style.display = "none";
+        imgContainer.style.display = "none";
+        candidateList.style.display = "none";
 
         if (!rawInput) {
             errorMsg.innerText = "請輸入搜尋內容！";
             errorMsg.style.display = "block";
-            imgContainer.style.display = "none";
             return;
         }
-
-        let targetCode = "";
 
         // 自動去除非數字的後綴字（如 .TW 或 .TWO）
         let cleanInput = rawInput.replace(/\.(TW|TWO)$/i, '');
 
         // 判斷 1：如果輸入的是純數字 (1 ~ 4 位數)
         if (/^\d{1,4}$/.test(cleanInput)) {
-            targetCode = cleanInput.padStart(4, '0');
+            const targetCode = cleanInput.padStart(4, '0');
+            displayImage(targetCode);
         } 
         // 判斷 2：如果輸入的是中文/英文公司名稱
         else {
-            // 進行模糊比對搜尋 (包含關鍵字即可)
-            const matchedKey = Object.keys(companyMap).find(key => 
-                key.toLowerCase().includes(rawInput.toLowerCase()) || 
-                rawInput.toLowerCase().includes(key.toLowerCase())
+            const keyword = rawInput.toLowerCase();
+            
+            # 搜尋所有名稱中包含關鍵字的公司
+            const matches = Object.keys(companyMap).filter(key => 
+                key.toLowerCase().includes(keyword)
             );
 
-            if (matchedKey) {
-                targetCode = companyMap[matchedKey];
-            } else {
+            if (matches.length === 0) {
                 errorMsg.innerText = `找不到與「${rawInput}」相關的公司名稱！`;
                 errorMsg.style.display = "block";
-                imgContainer.style.display = "none";
-                return;
+            } 
+            // 案例 A：精確只找到 1 家符合 ➔ 直接秀圖（不詢問）
+            else if (matches.length === 1) {
+                const targetCode = companyMap[matches[0]];
+                displayImage(targetCode);
+            } 
+            // 案例 B：找到多家符合（例如輸入「積電」找到「台積電」與「力積電」）➔ 彈出清單讓使用者點選
+            else {
+                showCandidateMenu(matches, rawInput);
             }
         }
+    }
 
-        errorMsg.style.display = "none";
+    // 顯示圖表核心函式
+    function displayImage(code) {
+        const imgContainer = document.getElementById("imgContainer");
+        const resultImg = document.getElementById("resultImg");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const candidateList = document.getElementById("candidateList");
+
+        candidateList.style.display = "none"; // 點選後隱藏選單
         
-        // 取得相對路徑的 PNG 圖檔
-        const imgUrl = `./${targetCode}.png`;
+        const imgUrl = `./${code}.png`;
 
         resultImg.src = imgUrl;
         imgContainer.style.display = "block";
 
         // 設定下載按鈕連結與預設下載檔名
         downloadBtn.href = imgUrl;
-        downloadBtn.download = `${targetCode}.png`;
+        downloadBtn.download = `${code}.png`;
+    }
+
+    // 渲染多家公司候選選單
+    function showCandidateMenu(matches, keyword) {
+        const candidateList = document.getElementById("candidateList");
+        const candidateContainer = document.getElementById("candidateContainer");
+        const candidateTitle = document.getElementById("candidateTitle");
+
+        candidateTitle.innerText = `找到 ${matches.length} 筆與「${keyword}」相關的公司，請點選：`;
+        candidateContainer.innerHTML = "";
+
+        matches.forEach(compName => {
+            const code = companyMap[compName];
+            
+            const item = document.createElement("div");
+            item.className = "candidate-item";
+            item.innerHTML = `
+                <span class="candidate-name">${compName}</span>
+                <span class="candidate-code">${code}</span>
+            `;
+            
+            // 點擊後直接呈現圖片
+            item.onclick = function() {
+                displayImage(code);
+            };
+
+            candidateContainer.appendChild(item);
+        });
+
+        candidateList.style.display = "block";
     }
 
     // 圖片載入失敗時的處理
