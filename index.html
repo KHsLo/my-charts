@@ -25,7 +25,7 @@
             border-radius: 16px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             width: 100%;
-            max-width: 480px;
+            max-width: 520px;
             text-align: center;
         }
         h2 {
@@ -49,11 +49,15 @@
         input[type="text"]:focus {
             border-color: #007aff;
         }
-        button.search-btn {
-            width: 100%;
+        /* 主查詢按鈕組 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .search-btn {
+            flex: 1;
             padding: 12px;
-            font-size: 1.1rem;
-            background-color: #007aff;
+            font-size: 1.05rem;
             color: white;
             border: none;
             border-radius: 8px;
@@ -61,10 +65,19 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        button.search-btn:hover {
+        .btn-daily {
+            background-color: #007aff;
+        }
+        .btn-daily:hover {
             background-color: #0056b3;
         }
-        /* 多家公司符合時的點擊候選選單樣式 */
+        .btn-weekly {
+            background-color: #5856d6;
+        }
+        .btn-weekly:hover {
+            background-color: #3b3a9e;
+        }
+        /* 候選公司清單與按鈕樣式 */
         .candidate-list {
             margin-top: 15px;
             display: none;
@@ -83,38 +96,79 @@
         }
         .candidate-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 12px 14px;
+            justify-content: space-between;
+            padding: 10px 12px;
             margin-bottom: 8px;
             background: white;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
+            gap: 8px;
         }
         .candidate-item:last-child {
             margin-bottom: 0;
         }
-        .candidate-item:hover, .candidate-item:active {
-            background-color: #e7f3ff;
-            border-color: #007aff;
+        .candidate-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            overflow: hidden;
         }
         .candidate-name {
             font-weight: bold;
             color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .candidate-code {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #007aff;
             background: #e7f3ff;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 2px 6px;
+            border-radius: 4px;
             font-weight: bold;
+            flex-shrink: 0;
         }
+        .candidate-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .action-btn {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .action-btn:hover {
+            opacity: 0.85;
+        }
+        .action-daily {
+            background-color: #007aff;
+        }
+        .action-weekly {
+            background-color: #5856d6;
+        }
+        /* 圖片顯示區 */
         .img-container {
             margin-top: 20px;
             display: none;
+        }
+        .chart-tag {
+            display: inline-block;
+            margin-bottom: 8px;
+            padding: 4px 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border-radius: 20px;
+            background-color: #e9ecef;
+            color: #495057;
         }
         .img-container img {
             max-width: 100%;
@@ -151,11 +205,15 @@
     <div class="input-group">
         <input type="text" id="searchInput" placeholder="請輸入公司代碼或名稱 (例: 鮮活 或 2330)" autocomplete="off">
     </div>
-    <button class="search-btn" onclick="searchPhoto()">查看圖表</button>
+    
+    <div class="btn-group">
+        <button class="search-btn btn-daily" onclick="searchPhoto('daily')">查看日圖</button>
+        <button class="search-btn btn-weekly" onclick="searchPhoto('weekly')">查看週圖</button>
+    </div>
 
     <div class="error-msg" id="errorMsg"></div>
 
-    <!-- 多家公司符合時顯示的點擊選單區 -->
+    <!-- 多家公司符合時顯示的候選選單區 -->
     <div class="candidate-list" id="candidateList">
         <div class="candidate-title" id="candidateTitle">找到多筆符合資料，請選擇：</div>
         <div id="candidateContainer"></div>
@@ -163,6 +221,8 @@
 
     <!-- 圖片顯示區 -->
     <div class="img-container" id="imgContainer">
+        <div class="chart-tag" id="chartTag"></div>
+        <br>
         <img id="resultImg" src="" alt="圖表載入中..." onerror="handleImageError()">
         <br>
         <a id="downloadBtn" href="" download class="download-btn">下載此圖表</a>
@@ -171,8 +231,9 @@
 
 <script>
     let companyMap = {};
+    let currentType = 'daily'; // 預設類別
 
-    // 頁面載入時，自動抓取對應的 companies.json 對照表
+    // 頁面載入時，自動抓取 companies.json 對照表
     fetch('./companies.json')
         .then(response => {
             if (!response.ok) {
@@ -182,19 +243,19 @@
         })
         .then(data => {
             companyMap = data;
-            console.log("對照表已成功載入，共計 " + Object.keys(companyMap).length + " 筆公司資料");
+            console.log("對照表已載入，共計 " + Object.keys(companyMap).length + " 筆公司資料");
         })
         .catch(err => {
             console.warn("對照表載入提示:", err.message);
         });
 
-    function searchPhoto() {
+    function searchPhoto(type = 'daily') {
+        currentType = type;
         const rawInput = document.getElementById("searchInput").value.trim();
         const errorMsg = document.getElementById("errorMsg");
         const imgContainer = document.getElementById("imgContainer");
         const candidateList = document.getElementById("candidateList");
 
-        // 搜尋前先清理舊的狀態
         errorMsg.style.display = "none";
         imgContainer.style.display = "none";
         candidateList.style.display = "none";
@@ -211,13 +272,11 @@
         // 判斷 1：如果輸入的是純數字 (1 ~ 4 位數)
         if (/^\d{1,4}$/.test(cleanInput)) {
             const targetCode = cleanInput.padStart(4, '0');
-            displayImage(targetCode);
+            displayImage(targetCode, type, `代碼 ${targetCode}`);
         } 
-        // 判斷 2：輸入的是中文/英文公司名稱
+        // 判斷 2：如果輸入的是公司名稱
         else {
             const keyword = rawInput.toLowerCase();
-            
-            // 搜尋所有公司名稱中「包含」關鍵字的公司項目
             const matches = Object.keys(companyMap).filter(key => 
                 key.toLowerCase().includes(keyword)
             );
@@ -226,12 +285,13 @@
                 errorMsg.innerText = `找不到與「${rawInput}」相關的公司名稱！`;
                 errorMsg.style.display = "block";
             } 
-            // 情況 A：剛好只有 1 家公司符合 ➔ 直接顯示圖片，不用點選
+            // 情況 A：剛好只有 1 家公司符合 ➔ 直接依按鈕類別顯示圖表
             else if (matches.length === 1) {
-                const targetCode = companyMap[matches[0]];
-                displayImage(targetCode);
+                const compName = matches[0];
+                const targetCode = companyMap[compName];
+                displayImage(targetCode, type, compName);
             } 
-            // 情況 B：有 2 家以上的公司符合（如輸入「積電」找到「台積電」與「力積電」） ➔ 顯示點擊清單
+            // 情況 B：有 2 家以上的公司符合 ➔ 彈出候選清單，帶有「日圖/週圖」點擊按鈕
             else {
                 showCandidateMenu(matches, rawInput);
             }
@@ -239,24 +299,30 @@
     }
 
     // 顯示圖表
-    function displayImage(code) {
+    function displayImage(code, type, compName) {
         const imgContainer = document.getElementById("imgContainer");
         const resultImg = document.getElementById("resultImg");
         const downloadBtn = document.getElementById("downloadBtn");
         const candidateList = document.getElementById("candidateList");
+        const chartTag = document.getElementById("chartTag");
 
-        candidateList.style.display = "none"; // 點選圖片後，隱藏選單
+        candidateList.style.display = "none";
         
-        const imgUrl = `./${code}.png`;
+        // 依 type 選擇 daily 或 weekly 資料夾
+        const folder = (type === 'weekly') ? 'weekly' : 'daily';
+        const typeText = (type === 'weekly') ? '週圖' : '日圖';
+        
+        const imgUrl = `./${folder}/${code}.png`;
 
+        chartTag.innerText = `${compName} (${code}) - ${typeText}`;
         resultImg.src = imgUrl;
         imgContainer.style.display = "block";
 
         downloadBtn.href = imgUrl;
-        downloadBtn.download = `${code}.png`;
+        downloadBtn.download = `${code}_${folder}.png`;
     }
 
-    // 建立多筆結果選單
+    // 建立候選清單（含日圖/週圖按鈕）
     function showCandidateMenu(matches, keyword) {
         const candidateList = document.getElementById("candidateList");
         const candidateContainer = document.getElementById("candidateContainer");
@@ -271,13 +337,24 @@
             const item = document.createElement("div");
             item.className = "candidate-item";
             item.innerHTML = `
-                <span class="candidate-name">${compName}</span>
-                <span class="candidate-code">${code}</span>
+                <div class="candidate-info">
+                    <span class="candidate-name" title="${compName}">${compName}</span>
+                    <span class="candidate-code">${code}</span>
+                </div>
+                <div class="candidate-actions">
+                    <button class="action-btn action-daily">日圖</button>
+                    <button class="action-btn action-weekly">週圖</button>
+                </div>
             `;
             
-            // 點擊對應選項後開啟圖表
-            item.onclick = function() {
-                displayImage(code);
+            // 綁定「日圖」點擊事件
+            item.querySelector('.action-daily').onclick = function() {
+                displayImage(code, 'daily', compName);
+            };
+
+            // 綁定「週圖」點擊事件
+            item.querySelector('.action-weekly').onclick = function() {
+                displayImage(code, 'weekly', compName);
             };
 
             candidateContainer.appendChild(item);
@@ -286,20 +363,20 @@
         candidateList.style.display = "block";
     }
 
-    // 圖片載入失敗時的處理
+    // 圖片載入失敗處理
     function handleImageError() {
         const errorMsg = document.getElementById("errorMsg");
         const imgContainer = document.getElementById("imgContainer");
         
         imgContainer.style.display = "none";
-        errorMsg.innerText = "找不到對應的圖表檔案（請確認是否有該代碼的 PNG 圖檔）！";
+        errorMsg.innerText = "找不到對應的圖表檔案（請確認該類別資料夾內是否有對應 PNG）！";
         errorMsg.style.display = "block";
     }
 
-    // 支援 Enter 鍵搜尋
+    // 支援按 Enter 鍵（預設為搜尋日圖）
     document.getElementById("searchInput").addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            searchPhoto();
+            searchPhoto('daily');
         }
     });
 </script>
