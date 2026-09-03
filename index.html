@@ -77,7 +77,7 @@
         .btn-weekly:hover {
             background-color: #3b3a9e;
         }
-        /* 候選公司清單與按鈕樣式 */
+        /* 候選公司清單樣式 */
         .candidate-list {
             margin-top: 15px;
             display: none;
@@ -155,20 +155,67 @@
         .action-weekly {
             background-color: #5856d6;
         }
-        /* 圖片顯示區 */
+        /* 圖片顯示區與上方控制工具列 */
         .img-container {
             margin-top: 20px;
             display: none;
         }
+        .image-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .toggle-group {
+            display: flex;
+            gap: 6px;
+        }
+        .toggle-btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            color: #495057;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active-daily {
+            background-color: #007aff;
+            color: white;
+            border-color: #007aff;
+        }
+        .toggle-btn.active-weekly {
+            background-color: #5856d6;
+            color: white;
+            border-color: #5856d6;
+        }
+        .reset-btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #ff3b30;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .reset-btn:hover {
+            background-color: #d70015;
+        }
         .chart-tag {
             display: inline-block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             padding: 4px 12px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: bold;
             border-radius: 20px;
             background-color: #e9ecef;
-            color: #495057;
+            color: #333;
         }
         .img-container img {
             max-width: 100%;
@@ -221,6 +268,15 @@
 
     <!-- 圖片顯示區 -->
     <div class="img-container" id="imgContainer">
+        <!-- 圖片上方的快速控制列 -->
+        <div class="image-toolbar">
+            <div class="toggle-group">
+                <button class="toggle-btn" id="toggleDailyBtn" onclick="switchChartType('daily')">日圖</button>
+                <button class="toggle-btn" id="toggleWeeklyBtn" onclick="switchChartType('weekly')">週圖</button>
+            </div>
+            <button class="reset-btn" onclick="resetSearch()">重新查詢</button>
+        </div>
+
         <div class="chart-tag" id="chartTag"></div>
         <br>
         <img id="resultImg" src="" alt="圖表載入中..." onerror="handleImageError()">
@@ -231,7 +287,9 @@
 
 <script>
     let companyMap = {};
-    let currentType = 'daily'; // 預設類別
+    let currentCode = '';      // 當前選定的公司代碼
+    let currentName = '';      // 當前選定的公司名稱
+    let currentType = 'daily'; // 當前顯示類別 ('daily' 或 'weekly')
 
     // 頁面載入時，自動抓取 companies.json 對照表
     fetch('./companies.json')
@@ -250,7 +308,6 @@
         });
 
     function searchPhoto(type = 'daily') {
-        currentType = type;
         const rawInput = document.getElementById("searchInput").value.trim();
         const errorMsg = document.getElementById("errorMsg");
         const imgContainer = document.getElementById("imgContainer");
@@ -285,21 +342,25 @@
                 errorMsg.innerText = `找不到與「${rawInput}」相關的公司名稱！`;
                 errorMsg.style.display = "block";
             } 
-            // 情況 A：剛好只有 1 家公司符合 ➔ 直接依按鈕類別顯示圖表
+            // 情況 A：剛好只有 1 家公司符合 ➔ 直接依類別顯示圖表
             else if (matches.length === 1) {
                 const compName = matches[0];
                 const targetCode = companyMap[compName];
                 displayImage(targetCode, type, compName);
             } 
-            // 情況 B：有 2 家以上的公司符合 ➔ 彈出候選清單，帶有「日圖/週圖」點擊按鈕
+            // 情況 B：有 2 家以上的公司符合 ➔ 彈出候選清單
             else {
                 showCandidateMenu(matches, rawInput);
             }
         }
     }
 
-    // 顯示圖表
+    // 顯示圖片核心函式
     function displayImage(code, type, compName) {
+        currentCode = code;
+        currentName = compName;
+        currentType = type;
+
         const imgContainer = document.getElementById("imgContainer");
         const resultImg = document.getElementById("resultImg");
         const downloadBtn = document.getElementById("downloadBtn");
@@ -308,7 +369,9 @@
 
         candidateList.style.display = "none";
         
-        // 依 type 選擇 daily 或 weekly 資料夾
+        // 更新上方 toggle 按鈕的高亮狀態
+        updateToggleStyle(type);
+
         const folder = (type === 'weekly') ? 'weekly' : 'daily';
         const typeText = (type === 'weekly') ? '週圖' : '日圖';
         
@@ -322,7 +385,47 @@
         downloadBtn.download = `${code}_${folder}.png`;
     }
 
-    // 建立候選清單（含日圖/週圖按鈕）
+    // 圖片上方專用的快速切換日/週圖
+    function switchChartType(type) {
+        if (currentCode) {
+            displayImage(currentCode, type, currentName);
+        }
+    }
+
+    // 更新日/週圖按鈕的高亮外觀
+    function updateToggleStyle(type) {
+        const toggleDailyBtn = document.getElementById("toggleDailyBtn");
+        const toggleWeeklyBtn = document.getElementById("toggleWeeklyBtn");
+
+        toggleDailyBtn.className = "toggle-btn";
+        toggleWeeklyBtn.className = "toggle-btn";
+
+        if (type === 'daily') {
+            toggleDailyBtn.classList.add("active-daily");
+        } else {
+            toggleWeeklyBtn.classList.add("active-weekly");
+        }
+    }
+
+    // 重新查詢（清空）
+    function resetSearch() {
+        const searchInput = document.getElementById("searchInput");
+        const imgContainer = document.getElementById("imgContainer");
+        const candidateList = document.getElementById("candidateList");
+        const errorMsg = document.getElementById("errorMsg");
+
+        searchInput.value = "";
+        imgContainer.style.display = "none";
+        candidateList.style.display = "none";
+        errorMsg.style.display = "none";
+
+        currentCode = '';
+        currentName = '';
+
+        searchInput.focus(); // 自動將游標移回輸入框
+    }
+
+    // 建立候選清單
     function showCandidateMenu(matches, keyword) {
         const candidateList = document.getElementById("candidateList");
         const candidateContainer = document.getElementById("candidateContainer");
@@ -347,12 +450,10 @@
                 </div>
             `;
             
-            // 綁定「日圖」點擊事件
             item.querySelector('.action-daily').onclick = function() {
                 displayImage(code, 'daily', compName);
             };
 
-            // 綁定「週圖」點擊事件
             item.querySelector('.action-weekly').onclick = function() {
                 displayImage(code, 'weekly', compName);
             };
@@ -373,7 +474,7 @@
         errorMsg.style.display = "block";
     }
 
-    // 支援按 Enter 鍵（預設為搜尋日圖）
+    // 按 Enter 預設進行日圖查詢
     document.getElementById("searchInput").addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
             searchPhoto('daily');
