@@ -286,6 +286,13 @@
 </div>
 
 <script>
+    // -------------------------------------------------------------
+    // 🌐 跨專案網址設定 (請務必將 YOUR_GITHUB_USERNAME 改為您的 GitHub 帳號)
+    // -------------------------------------------------------------
+    const GITHUB_USER = "KHsLo";
+    const DAILY_BASE_URL = `https://${GITHUB_USER}.github.io/my-charts/daily`;
+    const WEEKLY_BASE_URL = `https://${GITHUB_USER}.github.io/my-charts-weekly`;
+
     let companyMap = {};
     let currentCode = '';      // 當前選定的公司代碼
     let currentName = '';      // 當前選定的公司名稱
@@ -369,20 +376,21 @@
 
         candidateList.style.display = "none";
         
-        // 更新上方 toggle 按鈕的高亮狀態
+        // 更新上方 toggle 按鈕高亮狀態
         updateToggleStyle(type);
 
-        const folder = (type === 'weekly') ? 'weekly' : 'daily';
+        // 依據選擇類別自動指向對應的 GitHub 專案網址
+        const baseUrl = (type === 'weekly') ? WEEKLY_BASE_URL : DAILY_BASE_URL;
         const typeText = (type === 'weekly') ? '週圖' : '日圖';
         
-        const imgUrl = `./${folder}/${code}.png`;
+        const imgUrl = `${baseUrl}/${code}.png`;
 
         chartTag.innerText = `${compName} (${code}) - ${typeText}`;
         resultImg.src = imgUrl;
         imgContainer.style.display = "block";
 
         downloadBtn.href = imgUrl;
-        downloadBtn.download = `${code}_${folder}.png`;
+        downloadBtn.download = `${code}_${type === 'weekly' ? 'weekly' : 'daily'}.png`;
     }
 
     // 圖片上方專用的快速切換日/週圖
@@ -470,7 +478,7 @@
         const imgContainer = document.getElementById("imgContainer");
         
         imgContainer.style.display = "none";
-        errorMsg.innerText = "找不到對應的圖表檔案（請確認該類別資料夾內是否有對應 PNG）！";
+        errorMsg.innerText = "找不到對應的圖表檔案（請確認該類別儲存庫內是否有對應 PNG）！";
         errorMsg.style.display = "block";
     }
 
